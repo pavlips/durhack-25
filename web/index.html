@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DurHack Rewind</title>
+    <!-- 1. Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. Google Font (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- 3. Custom Styles for the "Wrapped" slide effect -->
+    <style>
+        /* Use the Inter font family */
+        body {
+            font-family: 'Inter', sans-serif;
+            /* This is the magic! Hide all overflow to prevent scrolling */
+            overflow: hidden;
+        }
+
+        /* The container that holds all slides. 
+           We'll move this left/right with JavaScript. */
+        #slide-container {
+            display: flex;
+            transition: transform 0.5s ease-in-out;
+            height: 100vh;
+        }
+
+        /* Each slide is one full screen */
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            flex-shrink: 0;
+            /* Center content in the slide by default */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2.5rem; /* p-10 */
+            box-sizing: border-box; /* Ensures padding doesn't break layout */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+
+    <!-- This main container holds all of our slides in a horizontal row -->
+    <div id="slide-container">
+
+        <!-- Slide 1: Welcome Screen -->
+        <div class="slide">
+            <h1 class="text-6xl md:text-8xl font-black text-center text-indigo-400">DurHack</h1>
+            <h2 class="text-7xl md:text-9xl font-black text-center uppercase">Rewind</h2>
+            <p class="mt-4 text-xl text-gray-300">Click Next to start</p>
+        </div>
+
+        <!-- Slide 2: The Selfies -->
+        <div class="slide">
+            <h2 class="text-4xl md:text-5xl font-bold text-center mb-8">
+                <span id="selfie-count" class="text-indigo-400">...</span> Hackers.
+                <span class="block text-2xl mt-2 font-normal">From the bright-eyed start...</span>
+            </h2>
+            <!-- This grid will be filled by JavaScript -->
+            <div id="selfie-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 md:gap-4 max-w-4xl max-h-[60vh] overflow-y-auto rounded-lg p-2 bg-gray-800/50">
+                <!-- JS will inject images here -->
+            </div>
+        </div>
+        
+        <!-- Slide 3: The Roasts -->
+        <div class="slide">
+            <h2 class="text-4xl md:text-5xl font-bold text-center mb-8">You had... <span class="text-rose-400">thoughts</span>.</h2>
+            <div class="bg-gray-800 p-6 md:p-8 rounded-xl max-w-2xl w-full shadow-2xl">
+                <p class="text-sm text-gray-400 mb-2">The best repo roasts:</p>
+                <p id="roast-text" class="text-lg md:text-2xl font-light min-h-[100px]">...</p>
+                <p id="roast-user" class="text-right text-indigo-300 mt-4 font-semibold">...</p>
+            </div>
+            <button id="next-roast-btn" class="mt-6 bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-400 transition-colors">
+                Next Roast
+            </button>
+        </div>
+        
+        <!-- Slide 4: Poll Results (Faked bar chart) -->
+        <div class="slide">
+            <h2 class="text-4xl md:text-5xl font-bold text-center mb-12">Who was your favourite sponsor?</h2>
+            <div id="poll-container" class="w-full max-w-2xl space-y-4">
+                <!-- JS will inject poll results here -->
+            </div>
+        </div>
+
+        <!-- Slide 5: The End -->
+        <div class="slide text-center">
+            <h2 class="text-5xl md:text-7xl font-bold">You built. You broke.</h2>
+            <h1 class="text-6xl md:text-8xl font-black text-center text-indigo-400 mt-4">You Survived.</h1>
+            <p class="mt-8 text-xl text-gray-300">See you next year, hacker.</p>
+        </div>
+
+    </div>
+
+    <!-- Navigation Buttons -->
+    <button id="prev-btn" class="fixed bottom-10 left-10 w-14 h-14 bg-white/10 text-white rounded-full flex items-center justify-center backdrop-blur-sm hover:bg-white/20 transition-all opacity-0 hidden">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
+    </button>
+    <button id="next-btn" class="fixed bottom-10 right-10 w-14 h-14 bg-indigo-500 text-white rounded-full flex items-center justify-center backdrop-blur-sm hover:bg-indigo-400 transition-all">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+        </svg>
+    </button>
+
+
+    <!-- 
+      4. SUPABASE CLIENT
+      You MUST get this from your Supabase Project Settings > API > Project URL & anon key
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // --- A. SUPABASE SETUP (Replace with your details) ---
+        // const SUPABASE_URL = 'YOUR_SUPABASE_URL_HERE';
+        // const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE';
+        
+        // Uncomment this when you're ready to connect
+        // const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+
+        // --- B. MOCK DATA (To make the site work for now) ---
+        // We'll use this mock data. Once Supabase is connected, you can delete this
+        // and use the data from `loadDataFromSupabase()` instead.
+        const MOCK_DATA = {
+            selfies: [
+                { user: "Team Rocket", url: "https://placehold.co/400x400/313444/9CA3AF?text=Team+1" },
+                { user: "Team Aqua", url: "https://placehold.co/400x400/4F46E5/FFFFFF?text=Team+2" },
+                { user: "Team Magma", url: "https://placehold.co/400x400/D946EF/FFFFFF?text=Team+3" },
+                { user: "Team Galactic", url: "https://placehold.co/400x400/E11D48/FFFFFF?text=Team+4" },
+                { user: "Team Plasma", url: "https://placehold.co/400x400/F97316/FFFFFF?text=Team+5" },
+                { user: "Team Flare", url: "https://placehold.co/400x400/EAB308/FFFFFF?text=Team+6" },
+                { user: "Team Skull", url: "https://placehold.co/400x400/FFFFFF/111827?text=Team+7" },
+                { user: "Team Yell", url: "https://placehold.co/400x400/EC4899/FFFFFF?text=Team+8" },
+            ],
+            roasts: [
+                { user: "dev_dave", content: "My code isn't spaghetti, it's avant-garde pasta art. You wouldn't get it." },
+                { user: "css_chris", content: "I have 37 `!important` tags. What are you gonna do about it?" },
+                { user: "react_rachel", content: "My `node_modules` folder is now self-aware and has applied for its own parking permit." },
+            ],
+            sponsor_votes: [
+                { name: "Sponsor A", votes: 42 },
+                { name: "Sponsor B", votes: 28 },
+                { name: "Sponsor C", votes: 15 },
+            ]
+        };
+
+        // --- C. SLIDE NAVIGATION LOGIC ---
+        let currentSlide = 0;
+        let totalSlides = 0;
+        const slideContainer = document.getElementById('slide-container');
+        const nextBtn = document.getElementById('next-btn');
+        const prevBtn = document.getElementById('prev-btn');
+
+        function showSlide(index) {
+            // Move the whole container
+            slideContainer.style.transform = `translateX(-${index * 100}vw)`;
+            
+            // Show/hide nav buttons
+            if (index === 0) {
+                prevBtn.classList.add('opacity-0', 'hidden');
+            } else {
+                prevBtn.classList.remove('opacity-0', 'hidden');
+            }
+            
+            if (index === totalSlides - 1) {
+                nextBtn.classList.add('opacity-0', 'hidden');
+            } else {
+                nextBtn.classList.remove('opacity-0', 'hidden');
+            }
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                showSlide(currentSlide);
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                showSlide(currentSlide);
+            }
+        }
+
+        // --- D. DYNAMIC CONTENT LOGIC (Populating Slides) ---
+        
+        /**
+         * Fills the Selfie grid with images
+         */
+        function loadSelfies(selfies) {
+            document.getElementById('selfie-count').textContent = selfies.length;
+            const grid = document.getElementById('selfie-grid');
+            grid.innerHTML = ''; // Clear existing
+            
+            selfies.forEach(selfie => {
+                const img = document.createElement('img');
+                img.src = selfie.url;
+                img.alt = `Selfie by ${selfie.user}`;
+                img.className = "w-full h-full object-cover rounded-md aspect-square";
+                grid.appendChild(img);
+            });
+        }
+        
+        /**
+         * Fills the Roasts slide and adds a 'next' button
+         */
+        let currentRoast = 0;
+        function loadRoasts(roasts) {
+            const roastText = document.getElementById('roast-text');
+            const roastUser = document.getElementById('roast-user');
+            
+            function showRoast(index) {
+                const roast = roasts[index];
+                roastText.textContent = `"${roast.content}"`;
+                roastUser.textContent = `- ${roast.user}`;
+            }
+            
+            showRoast(0);
+            
+            document.getElementById('next-roast-btn').addEventListener('click', () => {
+                currentRoast = (currentRoast + 1) % roasts.length;
+                showRoast(currentRoast);
+            });
+        }
+        
+        /**
+         * Fills the Poll Results with "bar charts"
+         */
+        function loadPoll(votes) {
+            const container = document.getElementById('poll-container');
+            container.innerHTML = ''; // Clear existing
+            
+            const maxVotes = Math.max(...votes.map(v => v.votes));
+            
+            votes
+                .sort((a, b) => b.votes - a.votes) // Sort descending
+                .forEach(item => {
+                    const percentage = (item.votes / maxVotes) * 100;
+                    
+                    const barHtml = `
+                        <div class="w-full">
+                            <div class="flex justify-between mb-1">
+                                <span class="text-base font-medium text-indigo-300">${item.name}</span>
+                                <span class="text-sm font-medium text-indigo-300">${item.votes} votes</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2.5">
+                                <div class="bg-indigo-500 h-2.5 rounded-full" style="width: ${percentage}%"></div>
+                            </div>
+                        </div>
+                    `;
+                    container.innerHTML += barHtml;
+                });
+        }
+        
+        /**
+         * This is your main function to fetch data from Supabase
+         */
+        async function loadDataFromSupabase() {
+            // 1. Set a loading state (optional)
+            
+            // 2. Fetch all your data in parallel
+            //
+            //  const { data: selfies, error: selfieError } = await supabase
+            //      .from('selfies')
+            //      .select('user, url');
+            //
+            //  const { data: roasts, error: roastError } = await supabase
+            //      .from('roasts')
+            //      .select('user, content');
+            
+            //  // For polls, you'll need an RPC (Remote Procedure Call)
+            //  // or you'll have to aggregate the data here in JS.
+            //  // Let's use MOCK_DATA for the poll for simplicity.
+            
+            
+            // 3. Check for errors
+            // if (selfieError) console.error('Error fetching selfies:', selfieError);
+            // if (roastError) console.error('Error fetching roasts:', roastError);
+            
+            
+            // 4. Use the fetched data (or fall back to mock data)
+            // loadSelfies(selfies || MOCK_DATA.selfies);
+            // loadRoasts(roasts && roasts.length > 0 ? roasts : MOCK_DATA.roasts);
+            // loadPoll(MOCK_DATA.sponsor_votes); // Still using mock for this
+        }
+
+
+        // --- E. INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Find all slides
+            totalSlides = document.querySelectorAll('.slide').length;
+            
+            // Set up nav
+            nextBtn.addEventListener('click', nextSlide);
+            prevBtn.addEventListener('click', prevSlide);
+            
+            // Show the first slide
+            showSlide(0);
+            
+            // --- This is the main part ---
+            
+            // OPTION 1: Load data from Supabase (uncomment this when ready)
+            // loadDataFromSupabase(); 
+            
+            // OPTION 2: Load from MOCK_DATA (default)
+            // Comment this block out when you use Supabase
+            (function loadMockData() {
+                loadSelfies(MOCK_DATA.selfies);
+                loadRoasts(MOCK_DATA.roasts);
+                loadPoll(MOCK_DATA.sponsor_votes);
+            })();
+        });
+    </script>
+</body>
+</html>
